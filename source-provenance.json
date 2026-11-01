@@ -1,7 +1,7 @@
 {
   "archive": "97e60006-8e70-426a-a4f8-6e453938ac65.zip",
   "sha256": "78459193bc9eac81ed8c2fdca54cdced431e96bf5085932db945f9813af6889c",
-  "mobileVersion": "1.2.2-V9.0.92-PREMIUM-UI",
+  "mobileVersion": "1.2.25-V9.0.92-PREMIUM-UI",
   "serverBaseline": "9.0.92",
   "files": {
     "api-contract/openapi-mobile-v1-draft.yaml": "86b026133aae889be19ae0e6ef26fa61ea87164dc7c5f8bb62d346ca9169635d",

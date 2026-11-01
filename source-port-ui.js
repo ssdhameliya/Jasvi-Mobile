@@ -4,7 +4,59 @@ const SD=globalThis.JasviDomain, SC=globalThis.JasviSource;
 const sourceRoutes=SC.routes;
 function runUi(task){Promise.resolve().then(task).catch(e=>jasviToast(e.message,'error'));}
 function sourceField(id,label,value='',type='text',options){return `<label class="field"><span>${jasviEsc(label)}</span>${options?`<select name="${id}">${[...new Set(['',...options,value].filter(v=>v!=null))].map(v=>`<option value="${jasviEsc(v)}" ${v===value?'selected':''}>${jasviEsc(v||'Select…')}</option>`).join('')}</select>`:type==='textarea'?`<textarea name="${id}" rows="2">${jasviEsc(value??'')}</textarea>`:`<input name="${id}" type="${type}" ${type==='number'?'step="any"':''} value="${jasviEsc(value??'')}">`}</label>`;}
-function sourceModal(title){const w=document.createElement('div');w.className='modal-backdrop source-modal';w.innerHTML=`<section class="dialog" role="dialog" aria-modal="true" aria-label="${jasviEsc(title)}" tabindex="-1"><h2>${jasviEsc(title)}</h2><form><div class="dialog-body source-body"></div><p class="error-text source-error" role="alert"></p><div class="dialog-actions"><button type="button" class="secondary source-close">Close</button><button type="submit" class="primary source-save">Save</button></div></form></section>`;document.body.append(w);const previous=document.activeElement,form=w.querySelector('form');let busy=false;const close=()=>{if(busy)return;w.remove();previous?.focus?.();};w.querySelector('.source-close').onclick=close;w.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();close();}if(e.key==='Tab'){const els=[...w.querySelectorAll('input,select,textarea,button,[tabindex]')].filter(e=>!e.disabled&&e.getAttribute('tabindex')!=='-1');if(!els.length)return;if(e.shiftKey&&document.activeElement===els[0]){e.preventDefault();els.at(-1).focus();}else if(!e.shiftKey&&document.activeElement===els.at(-1)){e.preventDefault();els[0].focus();}}});w.querySelector('section').focus();return {w,form,body:w.querySelector('.source-body'),error:msg=>{w.querySelector('.source-error').textContent=msg;},busy:v=>{busy=v;w.querySelector('.source-save').disabled=v;w.querySelector('.source-close').disabled=v;},close};}
+function sourceModal(title){
+  const w=document.createElement('div');
+  w.className='sheet-backdrop modal-backdrop source-modal';
+  w.innerHTML=`<section class="sheet" role="dialog" aria-modal="true" aria-label="${jasviEsc(title)}" tabindex="-1">
+    <div class="handle" aria-hidden="true"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h2 style="margin:0;font-size:16px;font-weight:850;color:var(--ink);">${jasviEsc(title)}</h2>
+      <button type="button" class="source-sheet-close" style="background:none;border:0;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:0 6px;" aria-label="Close">&times;</button>
+    </div>
+    <form>
+      <div class="dialog-body source-body"></div>
+      <p class="error-text source-error" role="alert"></p>
+      <div class="dialog-actions" style="margin-top:14px;display:flex;gap:8px;">
+        <button type="button" class="secondary source-close" style="flex:1;">Cancel</button>
+        <button type="submit" class="primary source-save" style="flex:1.4;">Save</button>
+      </div>
+    </form>
+  </section>`;
+  document.body.append(w);
+  const previous=document.activeElement,form=w.querySelector('form');
+  let busy=false;
+  const close=()=>{if(busy)return;w.remove();previous?.focus?.();};
+  w.querySelectorAll('.source-close, .source-sheet-close').forEach(b=>b.onclick=close);
+  w.addEventListener('click',e=>{if(e.target===w)close();});
+  w.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){e.stopPropagation();close();}
+    if(e.key==='Tab'){
+      const els=[...w.querySelectorAll('input,select,textarea,button,[tabindex]')].filter(e=>!e.disabled&&e.getAttribute('tabindex')!=='-1');
+      if(!els.length)return;
+      if(e.shiftKey&&document.activeElement===els[0]){e.preventDefault();els.at(-1).focus();}
+      else if(!e.shiftKey&&document.activeElement===els.at(-1)){e.preventDefault();els[0].focus();}
+    }
+  });
+  w.querySelector('section').focus();
+  return {
+    w,
+    form,
+    body:w.querySelector('.source-body'),
+    error:msg=>{w.querySelector('.source-error').textContent=msg;},
+    busy:v=>{
+      busy=v;
+      const saveBtn=w.querySelector('.source-save');
+      if(saveBtn)saveBtn.disabled=v;
+      w.querySelectorAll('.source-close, .source-sheet-close').forEach(b=>b.disabled=v);
+      if(v&&window.showHudLoading)window.showHudLoading('Syncing with Jasvi ERP…');
+      else if(!v&&window.hideHudLoading)window.hideHudLoading();
+    },
+    close:()=>{
+      if(window.hideHudLoading)window.hideHudLoading();
+      close();
+    }
+  };
+}
 async function selectSourceRecord(kind,chosen){const party=kind!=='ITEM',type=kind;const m=sourceModal(party?'Select '+(type==='CUSTOMER'?'Customer':'Supplier'):'Select Item');m.w.querySelector('.source-save').remove();m.body.innerHTML=`${sourceField('query','Search','')}<button type="button" class="secondary source-search">Search</button><div class="source-results"></div>`;let request=0;const search=async()=>{const seq=++request;const q=m.form.elements.query.value.trim();const url=party?sourceRoutes.PARTIES_SEARCH+'?'+new URLSearchParams({type,q,limit:'100'}):sourceRoutes.ITEMS_SEARCH+'?'+new URLSearchParams({q,limit:'100'});m.error('');try{const rows=await jasviApi(url);if(seq!==request||!m.w.isConnected)return;const out=m.w.querySelector('.source-results');out.replaceChildren();for(const r of rows){const b=document.createElement('button');b.type='button';b.className='source-result';b.textContent=party?`${r.partyCode} • ${r.name}`:`${r.itemCode} • ${r.description}`;b.onclick=()=>{chosen(r);m.close();};out.append(b);}if(!rows.length)out.textContent='No matching records.';}catch(e){m.error(e.message);}};m.w.querySelector('.source-search').onclick=search;m.form.onsubmit=e=>{e.preventDefault();search();};await search();}
 function editSourceLine(sales,current,onSave){const m=sourceModal('Item Line');let l={...SC.models.DocumentLine,...current};m.body.innerHTML=`<button type="button" class="secondary source-pick">Select Item</button><p class="source-item-name">${jasviEsc(l.itemCode||'Select an item')}</p><div class="source-grid">${sourceField('quantity','Quantity',l.quantity,'number')}${sourceField('rate','Rate',l.rate,'number')}${sourceField('discountPercent','Discount %',l.discountPercent,'number')}${sourceField('gstPercent','GST %',l.gstPercent,'number')}${sourceField('itemRemarks','Remarks',l.itemRemarks)}</div>`;m.w.querySelector('.source-pick').onclick=()=>runUi(()=>selectSourceRecord('ITEM',item=>{l={...l,itemCode:item.itemCode,itemDescription:item.description,itemUnit:item.unit,itemHsn:item.hsn};m.w.querySelector('.source-item-name').textContent=`${item.itemCode} • ${item.description}`;for(const [k,v] of Object.entries({rate:sales?item.sellingPrice:item.purchasePrice,gstPercent:item.gst,discountPercent:item.discountPercent})){m.form.elements[k].value=v||0;}}));m.form.onsubmit=e=>{e.preventDefault();const v=Object.fromEntries(new FormData(m.form));const line=SD.line({...l,...v});const error=SD.validateLines([line]);if(error)return m.error(error);onSave(line);m.close();};}
 function editSourceCharge(types,current,onSave){const m=sourceModal('Additional Charge');const c={...SC.models.DocumentCharge,...current};m.body.innerHTML=sourceField('chargeType','Charge Type',c.chargeType,'text',types)+sourceField('amount','Amount',c.amount,'number')+`<label class="check"><input name="taxable" type="checkbox" ${c.taxable?'checked':''}>Taxable</label>`+sourceField('gstPercent','GST %',c.gstPercent,'number');m.form.onsubmit=e=>{e.preventDefault();const v=Object.fromEntries(new FormData(m.form));onSave({chargeType:v.chargeType,amount:Number(v.amount),taxable:!!v.taxable,gstPercent:Number(v.gstPercent)});m.close();};}

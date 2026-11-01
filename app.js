@@ -225,7 +225,73 @@ function searchBox(id,value,placeholder){return `<div class="search"><span>${ico
 function metric(label,value,cls='purple'){return `<div class="metric ${cls}"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`}
 function badge(v){return `<span class="badge ${statusClass(v)}">${esc(v||'—')}</span>`}
 function recordCard({id,title,sub,meta,amount,status,attrs='',iconText='▤',actions=true}){return `<article class="record-card" ${attrs}><div class="record-icon">${esc(iconText)}</div><div class="record-main"><h3>${esc(title||'Record')}</h3><p>${esc(sub||'')}</p><small>${esc(meta||'')}</small></div><div class="record-right"><strong>${amount!==undefined&&amount!==null?(typeof amount==='number'?rupee(amount):esc(amount)):''}</strong>${status?badge(status):''}${actions?`<button class="more-btn" data-actions="${esc(id||'')}">⋮ Actions</button>`:''}</div></article>`}
-function loading(label='Loading ERP records…'){return `<div class="state-card"><div class="spinner"></div><strong>${esc(label)}</strong><span>Please wait</span></div>`}
+function showHudLoading(msg = 'Processing ERP request…') {
+  let hud = document.getElementById('jasvi-hud-loading');
+  if (!hud) {
+    hud = document.createElement('div');
+    hud.id = 'jasvi-hud-loading';
+    hud.className = 'hud-loading-backdrop';
+    hud.innerHTML = `
+      <div class="hud-loading-card">
+        <div class="orbital-spinner">
+          <div class="orbital-ring-1"></div>
+          <div class="orbital-ring-2"></div>
+        </div>
+        <strong id="hud-loading-text" style="font-size:13px;font-weight:800;color:var(--ink);">${esc(msg)}</strong>
+        <span style="font-size:10px;color:var(--muted);">Secure Jasvi Cloud Gateway</span>
+      </div>
+    `;
+    document.body.appendChild(hud);
+  } else {
+    const textEl = document.getElementById('hud-loading-text');
+    if (textEl) textEl.textContent = msg;
+  }
+  requestAnimationFrame(() => hud.classList.add('active'));
+}
+
+function hideHudLoading() {
+  const hud = document.getElementById('jasvi-hud-loading');
+  if (hud) hud.classList.remove('active');
+}
+window.showHudLoading = showHudLoading;
+window.hideHudLoading = hideHudLoading;
+
+function loading(label='Loading ERP records…'){
+  return `
+    <div class="shimmer-container" role="status" aria-label="${esc(label)}">
+      <div class="shimmer-status-pill">
+        <span class="shimmer-pulse-dot"></span>
+        <span>${esc(label)}</span>
+      </div>
+      <div class="list">
+        <div class="skeleton-card">
+          <div class="skeleton-box" style="width:38px;height:38px;border-radius:12px;"></div>
+          <div style="display:grid;gap:6px;">
+            <div class="skeleton-box" style="width:55%;height:13px;"></div>
+            <div class="skeleton-box" style="width:80%;height:10px;"></div>
+          </div>
+          <div class="skeleton-box" style="width:50px;height:16px;border-radius:6px;justify-self:end;"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-box" style="width:38px;height:38px;border-radius:12px;"></div>
+          <div style="display:grid;gap:6px;">
+            <div class="skeleton-box" style="width:65%;height:13px;"></div>
+            <div class="skeleton-box" style="width:70%;height:10px;"></div>
+          </div>
+          <div class="skeleton-box" style="width:56px;height:16px;border-radius:6px;justify-self:end;"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-box" style="width:38px;height:38px;border-radius:12px;"></div>
+          <div style="display:grid;gap:6px;">
+            <div class="skeleton-box" style="width:45%;height:13px;"></div>
+            <div class="skeleton-box" style="width:85%;height:10px;"></div>
+          </div>
+          <div class="skeleton-box" style="width:48px;height:16px;border-radius:6px;justify-self:end;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 function empty(title='No records',msg='Nothing matches this view.'){return `<div class="state-card"><strong>${esc(title)}</strong><span>${esc(msg)}</span></div>`}
 
 function dashboardHtml(){
