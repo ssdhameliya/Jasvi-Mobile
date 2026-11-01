@@ -33,14 +33,14 @@ data class MfaChallengeResponse(
 @Serializable data class PasswordResetCompleteRequest(val challengeId:String="",val otp:String="",val totp:String="",val password:String="")
 @Serializable data class CaptchaResponse(val challengeId:String="",val question:String="",val expiresIn:String="")
 @Serializable data class RegistrationOtpRequest(
-    val username:String="",val fullName:String="",val email:String="",val role:String="",val mfaEnabled:Boolean=true,
+    val username:String="",val fullName:String="",val email:String="",val phone:String="",val role:String="",val mfaEnabled:Boolean=true,
     val captchaChallengeId:String="",val captchaAnswer:String=""
 )
-@Serializable data class RegistrationEmailVerifyRequest(val challengeId:String="",val otp:String="",val username:String="",val password:String="",val fullName:String="",val email:String="",val role:String="",val mfaEnabled:Boolean=true)
+@Serializable data class RegistrationEmailVerifyRequest(val challengeId:String="",val otp:String="",val username:String="",val password:String="",val fullName:String="",val email:String="",val phone:String="",val role:String="",val mfaEnabled:Boolean=true)
 @Serializable data class RegistrationMfaSetupResponse(val success:Boolean=false,val registrationId:Long?=null,val manualSecret:String="",val provisioningUri:String="",val message:String="")
 @Serializable data class RegistrationMfaCompleteRequest(val registrationId:Long=0,val otp:String="")
 @Serializable data class SessionExtendResponse(val success:Boolean=false,val message:String="",val accessToken:String="",val expiresAt:String="")
-@Serializable data class RegisterRequest(val username:String="",val password:String="",val fullName:String="",val email:String="",val role:String="",val mfaEnabled:Boolean=false)
+@Serializable data class RegisterRequest(val username:String="",val password:String="",val fullName:String="",val email:String="",val phone:String="",val role:String="",val mfaEnabled:Boolean=false)
 @Serializable data class ChallengeResponse(val success:Boolean=false,val challengeId:String="",val message:String="")
 @Serializable data class RoleOption(val code:String="",val displayName:String="")
 
@@ -52,6 +52,7 @@ data class UserPayload(
     val role: String = "",
     val roleId: Int? = null,
     val email: String? = null,
+    val phone: String? = null,
     val active: Boolean = false,
     val department: String? = null,
     val branch: String? = null,

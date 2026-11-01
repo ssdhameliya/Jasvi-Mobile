@@ -155,7 +155,11 @@ D:\DSE Production (PostgreSQL 16 on port 55432)
 >    - **Strict Zero-Dependency Creep:** Never introduce arbitrary npm packages, external plugins, or third-party CDN scripts into any repository (`Jasvi-Admin`, `Jasvi-UserView`, `Jasvi-Mobile`).
 >    - **Mandatory Guarding & Verification:** All approved vendor plugins (e.g. `jspdf` for client PDF generation, `xlsx` for Excel parsing/export, `swiper` for 3D showcase carousel) must be defensively guarded (`window.jspdf`, `window.XLSX`, `window.Swiper`) to prevent runtime failures or offline breaks.
 >    - **Architectural Determinism:** Core business logic, pricing, tax calculations, and state machines must NEVER be outsourced to external plugins; they belong strictly in internal, deterministic engines (`DocumentCalculationEngine.js`, Java backend) to maintain 100% desktop-web parity.
-> 5. **Zero Extraneous File Contamination:**
+> 5. **Desktop Theme Ownership & Release Contract Gate (`SharedUiOwnershipContractTest` & `audit-release-gates.py`):**
+>    - **Zero Controller Colour Leaks:** Never place hex colours (`#[0-9A-Fa-f]{6}`) or inline JavaFX colour properties (`-fx-background-color`, `-fx-text-fill`, `-fx-icon-color`, `-fx-border-color`) inside any file under `desktop/src/main/java/org/example/controller/`. All colours in controllers must be delegated to `dark-theme.css` / `light-theme.css` via `getStyleClass().add(...)`.
+>    - **Mandatory Tier 1 Execution Part of Every Fix:** Running `mvn test-compile` alone is insufficient. As part of verifying every Desktop/Server fix in Tier 1 (before syncing to Tier 2 or pushing to GitHub), Antigravity MUST execute `mvn test -pl desktop -am "-Dtest=SharedUiOwnershipContractTest" "-Dsurefire.failIfNoSpecifiedTests=false"` AND `python scripts/audit-release-gates.py` (including registering any new Flyway `.sql` migration in `SecurityFinancialMigrationRunner.java`).
+>    - **Strict Active Release Version Matching for Database Migrations:** Whenever creating a database schema migration (`.sql`), developers and agents MUST NEVER use stale, hardcoded, or legacy version prefixes (such as `V10_0_XX`). The Flyway migration file name and its registration in `SecurityFinancialMigrationRunner.java` MUST strictly match the **active working release version** of the application (e.g. for release `11.0.24`, the migration file MUST be named `V11_0_24__<description>.sql`, or `V11_0_24_1__<description>.sql` if multiple migrations exist within the same release). This guarantees 100% semantic alignment between git release tags, `version.json`, `pom.xml`, and the PostgreSQL schema migration history table (`dse_schema_migration`).
+> 6. **Zero Extraneous File Contamination:**
 >    - Agent plugins must strictly adhere to Rule 1.5 — never creating, depositing, or syncing extraneous `.txt`, `.md`, or log artifacts into any project tier.
 
 ### 1.9 Mandatory "Push to GitHub" Protocol: Full-Tier Sync & Version Auto-Increment
@@ -201,11 +205,46 @@ All verified IP addresses, DNS mappings, ports, databases, and SSH credentials a
 | **Server Public IP** | `130.210.35.1` | `144.24.109.1` |
 | **SSH User** | `opc` | `opc` |
 | **SSH Private Key (Local)** | `~/.ssh/dse-erp-github-prod-ci` | `~/.ssh/dse-erp-github-uat` |
+| **Total Memory (RAM)** | **8 GB** (`6.7 GiB` usable, `4.0 GiB` Swap) | **4 GB** (`3.6 GiB` usable, `4.0 GiB` Swap) |
+| **Physical Block Volume** | **130 GB** (Expanded Boot Volume) | **70 GB** (Expanded Boot Volume) |
+| **Root Partition (`/`)** | **113 GB** XFS (`ocivolume-root`, ~94 GB free) | **53 GB** XFS (`ocivolume-root`, ~33 GB free) |
+| **Auxiliary Partitions** | `15 GB` (`/var/oled`), `2 GB` (`/boot`) | `15 GB` (`/var/oled`), `2 GB` (`/boot`) |
 | **Spring Server Port** | `8080` | `8081` |
 | **Target Database** | `dse_erp` (PostgreSQL 16+) | `dse_erp_uat` (PostgreSQL 16+) |
 | **Public Showcase Root** | `/srv/dse-erp/web/public` | `/srv/dse-erp/web/public` |
 | **Web ERP Root** | `/srv/dse-erp/web/admin` | `/srv/dse-erp/web/admin` |
 | **Web Server / SSL** | Caddy `/etc/caddy/Caddyfile` (Auto TLS, HTTP/3, Static `file_server` + `/api/*` reverse proxy) | Caddy `/etc/caddy/Caddyfile` (Auto TLS, HTTP/3, Static `file_server` + `/api/*` reverse proxy) |
+
+#### 2.2.1 Remote Server Health & Storage Inspection Commands
+Execute these 1-line commands from local terminal to verify memory, swap, and disk capacity:
+
+* **Windows (PowerShell):**
+  ```powershell
+  # Check Production (RAM & Disk)
+  ssh -i "$HOME/.ssh/dse-erp-github-prod-ci" opc@130.210.35.1 "free -h; echo '--- STORAGE ---'; df -h /"
+
+  # Check UAT (RAM & Disk)
+  ssh -i "$HOME/.ssh/dse-erp-github-uat" opc@144.24.109.1 "free -h; echo '--- STORAGE ---'; df -h /"
+  ```
+
+* **Mac / Linux (Terminal):**
+  *(Ensure `chmod 600 ~/.ssh/dse-erp-github-*` is set once)*
+  ```bash
+  # Check Production (RAM & Disk)
+  ssh -i ~/.ssh/dse-erp-github-prod-ci opc@130.210.35.1 "free -h; echo '--- STORAGE ---'; df -h /"
+
+  # Check UAT (RAM & Disk)
+  ssh -i ~/.ssh/dse-erp-github-uat opc@144.24.109.1 "free -h; echo '--- STORAGE ---'; df -h /"
+  ```
+
+* **OCI Disk Expansion Protocol (When boot volume is resized in OCI Console):**
+  ```bash
+  # 1. Rescan SCSI bus to detect new drive geometry
+  echo 1 | sudo tee /sys/class/block/sda/device/rescan
+
+  # 2. Automatically extend partition 3 and LVM XFS filesystem online
+  sudo /usr/libexec/oci-growfs -y
+  ```
 
 ---
 
